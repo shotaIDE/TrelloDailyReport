@@ -2,6 +2,8 @@
 
 import argparse
 import json
+import re
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 
@@ -12,11 +14,20 @@ _MOCK_BOARDS_FILE = 'mock_boards.json'
 _MOCK_ACTIONS_FILE = 'mock_actions.json'
 _UTC = timezone(timedelta(), 'UTC')
 _JST = timezone(timedelta(hours=9), name='JST')
+_PLUS_FOR_TRELLO_COMMENT_FORMAT = r'^plus\! (\d+(\.\d+)?)/(\d+(\.\d+)?) ?(.*)$'
 
 
 class Mode(Enum):
     GET_BOARDS = 'boards'
     GET_ACTIONS = 'actions'
+
+
+@dataclass
+class Action:
+    card_id: str
+    card_title: str
+    comment: str
+    spent: float
 
 
 def main():
@@ -129,6 +140,8 @@ def get_query(params: dict) -> str:
 def parse_actions(actions: str, start_datetime: datetime):
     print(f'Start period: {start_datetime}')
 
+    pattern = re.compile(_PLUS_FOR_TRELLO_COMMENT_FORMAT)
+
     in_period_actions = []
     for action in actions:
         action_datetime_str = action['date']
@@ -139,9 +152,30 @@ def parse_actions(actions: str, start_datetime: datetime):
         if (action_datetime < start_datetime):
             continue
 
+        text = action['data']['text']
+        matched = pattern.match(text)
+        if not matched:
+            continue
+
+        matched_groups = matched.groups()
+        spent = float(matched_groups[0])
+        comment = matched_groups[4]
+
+        card = action['data']['card']
+        card_id = card['id']
+        card_title = card['name']
+
+        action = Action(
+            card_id=card_id,
+            card_title=card_title,
+            comment=comment,
+            spent=spent)
+
+        print(action)
+
         in_period_actions.append(action)
 
-    print(f'Filtered actions: {in_period_actions}')
+    print(f'Filtered actions: #{len(in_period_actions)}')
 
 
 if __name__ == '__main__':
