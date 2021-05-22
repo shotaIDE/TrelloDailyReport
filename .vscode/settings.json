@@ -1,0 +1,7 @@
+{
+    "editor.formatOnSave": true,
+    "python.linting.enabled": true,
+    "python.linting.lintOnSave": true,
+    "python.linting.pylintEnabled": false,
+    "python.linting.pycodestyleEnabled": true
+}
