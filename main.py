@@ -37,27 +37,20 @@ def main():
     trello_user_name = settings_dict['trelloUserName']
     trello_board_id = settings_dict['trelloBoardId']
 
-    query = get_query(key=trello_api_key, token=trello_api_secret)
+    general_params = {
+        'key': trello_api_key,
+        'token': trello_api_secret,
+    }
 
     if mode == Mode.GET_BOARDS:
-        get_boards(user_id=trello_user_name, query=query)
+        get_boards(user_id=trello_user_name, general_params=general_params)
     elif mode == Mode.GET_ACTIONS:
-        get_actions()
+        get_actions(board_id=trello_board_id, general_params=general_params)
 
 
-def get_query(key: str, token: str) -> str:
-    params = {
-        'key': key,
-        'token': token,
-    }
-    query_strings = [f'{key}={value}' for key, value in params.items()]
-    query = '&'.join(query_strings)
-    return query
-
-
-def get_boards(user_id: str, query: str):
+def get_boards(user_id: str, general_params: dict):
     get_boards_path = f'/1/members/{user_id}/boards'
-
+    query = get_query(params=general_params)
     url = f'{_API_ORIGIN}{get_boards_path}?{query}'
 
     print(f'Get url: {url}')
@@ -72,8 +65,29 @@ def get_boards(user_id: str, query: str):
         json.dump(boards, f, ensure_ascii=False, indent=4)
 
 
-def get_actions():
-    pass
+def get_actions(board_id: str, general_params: dict):
+    get_actions_path = f'/1/boards/{board_id}/actions'
+    params = general_params.copy()
+    params['limit'] = 100
+    query = get_query(params=params)
+    url = f'{_API_ORIGIN}{get_actions_path}?{query}'
+
+    print(f'Get url: {url}')
+
+    result = requests.get(url)
+    actions_string = result.text
+
+    print(f'result: {actions_string}')
+
+    boards = json.loads(actions_string)
+    with open('debug_actions.json', 'w', encoding='utf-8') as f:
+        json.dump(boards, f, ensure_ascii=False, indent=4)
+
+
+def get_query(params: dict) -> str:
+    query_strings = [f'{key}={value}' for key, value in params.items()]
+    query = '&'.join(query_strings)
+    return query
 
 
 if __name__ == '__main__':
