@@ -98,7 +98,7 @@ def main():
                 general_params=general_params)
 
             with open(_MOCK_ACTIONS_FILE, 'w', encoding='utf-8') as f:
-                json.dump(boards, f, ensure_ascii=False, indent=4)
+                json.dump(actions, f, ensure_ascii=False, indent=4)
 
         if mock:
             start_datetime = datetime(2021, 5, 21, tzinfo=_JST)
