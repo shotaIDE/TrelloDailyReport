@@ -246,7 +246,7 @@ def parse_actions(actions: str, start_datetime: datetime):
 
 
 def fetch_cards(board_id: str, general_params: dict) -> dict:
-    target_status = 'open'
+    target_status = 'visible'
     get_actions_path = f'/1/boards/{board_id}/cards/{target_status}'
 
     query = get_query(params=general_params)
