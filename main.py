@@ -25,9 +25,24 @@ class Mode(Enum):
 
 
 @dataclass
+class Label:
+    id: str
+    text: str
+
+    def __eq__(self, other):
+        if not isinstance(other, Label):
+            return False
+        return self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id)
+
+
+@dataclass
 class Card:
     id: str
     title: str
+    labels: [Label]
 
     def __eq__(self, other):
         if not isinstance(other, Card):
@@ -125,6 +140,8 @@ def main():
 
             with open(_MOCK_CARDS_FILE, 'w', encoding='utf-8') as f:
                 json.dump(cards, f, ensure_ascii=False, indent=4)
+
+        parse_cards(cards=cards)
 
 
 def get_boards(user_id: str, general_params: dict):
@@ -245,6 +262,22 @@ def fetch_cards(board_id: str, general_params: dict) -> dict:
 
     cards = json.loads(cards_string)
     return cards
+
+
+def parse_cards(cards: dict) -> dict:
+    parsed_cards = []
+    for card in cards:
+        labels = [
+            Label(id=label['id'], text=label['name'])
+            for label in card['labels']
+        ]
+        parsed_cards.append(
+            Card(id=card['id'], title=card['name'], labels=labels)
+        )
+
+    print(parsed_cards)
+
+    return parsed_cards
 
 
 if __name__ == '__main__':
