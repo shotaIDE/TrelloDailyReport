@@ -55,14 +55,14 @@ class Card:
 
 @dataclass
 class Action:
-    card: Card
+    card_id: str
     comment: str
     spent: float
 
 
 @dataclass
 class Spent:
-    card: Card
+    card_id: str
     comments: [str]
     spent: float
 
@@ -216,12 +216,9 @@ def parse_actions(actions: str, start_datetime: datetime):
         spent = float(matched_groups[0])
         comment = matched_groups[4]
 
-        card = action['data']['card']
-        card_id = card['id']
-        card_title = card['name']
+        card_id = action['data']['card']['id']
 
-        card = Card(id=card_id, title=card_title)
-        action = Action(card=card, comment=comment, spent=spent)
+        action = Action(card_id=card_id, comment=comment, spent=spent)
 
         print(action)
 
@@ -229,17 +226,20 @@ def parse_actions(actions: str, start_datetime: datetime):
 
     print(f'Filtered actions: #{len(in_period_actions)}')
 
-    duplicated_cards = [action.card for action in in_period_actions]
-    cards = set(duplicated_cards)
+    duplicated_card_id_list = [action.card_id for action in in_period_actions]
+    card_id_set = set(duplicated_card_id_list)
 
     spents = []
-    for card in cards:
+    for card_id in card_id_set:
         card_actions = [action for action in in_period_actions]
         card_spent_raw = sum([action.spent for action in card_actions])
         card_spent = round(card_spent_raw, 2)
         card_comments = [
             action.comment for action in card_actions if action.comment != '']
-        spent = Spent(card=card, comments=card_comments, spent=card_spent)
+        spent = Spent(
+            card_id=card_id,
+            comments=card_comments,
+            spent=card_spent)
         spents.append(spent)
 
     print(spents)
