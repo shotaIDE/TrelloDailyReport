@@ -6,6 +6,8 @@ import json
 import requests
 
 _API_ORIGIN = 'https://api.trello.com'
+_MOCK_BOARDS_FILE = 'mock_boards.json'
+_MOCK_ACTIONS_FILE = 'mock_actions.json'
 
 
 class Mode(Enum):
@@ -16,6 +18,7 @@ class Mode(Enum):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', type=str, default=Mode.GET_ACTIONS.value)
+    parser.add_argument('--prod', action='store_true', default=False)
     arguments = parser.parse_args()
 
     mode_str = arguments.mode
@@ -27,6 +30,12 @@ def main():
         print('Run in default mode (get actions mode)')
     else:
         raise Exception('Invalid mode')
+
+    mock = not arguments.prod
+    if mock:
+        print('Run in mock mode')
+    else:
+        print('Run in production mode')
 
     SETTINGS_JSON_FILE_NAME = 'settings.json'
     with open(SETTINGS_JSON_FILE_NAME, 'r', encoding='utf-8') as f:
@@ -45,7 +54,18 @@ def main():
     if mode == Mode.GET_BOARDS:
         get_boards(user_id=trello_user_name, general_params=general_params)
     elif mode == Mode.GET_ACTIONS:
-        get_actions(board_id=trello_board_id, general_params=general_params)
+        if mock:
+            with open(_MOCK_ACTIONS_FILE, 'r', encoding='utf-8') as f:
+                actions = json.load(f)
+        else:
+            actions = fetch_actions(
+                board_id=trello_board_id,
+                general_params=general_params)
+
+            with open(_MOCK_ACTIONS_FILE, 'w', encoding='utf-8') as f:
+                json.dump(boards, f, ensure_ascii=False, indent=4)
+
+        parse_actions(actions=actions)
 
 
 def get_boards(user_id: str, general_params: dict):
@@ -61,11 +81,11 @@ def get_boards(user_id: str, general_params: dict):
     print(f'result: {boards_string}')
 
     boards = json.loads(boards_string)
-    with open('debug_boards.json', 'w', encoding='utf-8') as f:
+    with open(_MOCK_BOARDS_FILE, 'w', encoding='utf-8') as f:
         json.dump(boards, f, ensure_ascii=False, indent=4)
 
 
-def get_actions(board_id: str, general_params: dict):
+def fetch_actions(board_id: str, general_params: dict) -> dict:
     get_actions_path = f'/1/boards/{board_id}/actions'
 
     params = general_params.copy()
@@ -86,15 +106,18 @@ def get_actions(board_id: str, general_params: dict):
 
     print(f'result: {actions_string}')
 
-    boards = json.loads(actions_string)
-    with open('debug_actions.json', 'w', encoding='utf-8') as f:
-        json.dump(boards, f, ensure_ascii=False, indent=4)
+    actions = json.loads(actions_string)
+    return actions
 
 
 def get_query(params: dict) -> str:
     query_strings = [f'{key}={value}' for key, value in params.items()]
     query = '&'.join(query_strings)
     return query
+
+
+def parse_actions(actions: str):
+    pass
 
 
 if __name__ == '__main__':

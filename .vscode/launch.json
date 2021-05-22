@@ -5,11 +5,21 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Get Actions",
+            "name": "Get Actions Mock",
             "type": "python",
             "request": "launch",
             "program": "${workspaceRoot}/main.py",
             "console": "integratedTerminal",
+        },
+        {
+            "name": "Get Actions Production",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceRoot}/main.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--prod"
+            ]
         },
         {
             "name": "Get Boards",
