@@ -1,13 +1,17 @@
 # coding: utf-8
 
-from enum import Enum
 import argparse
 import json
+from datetime import datetime, timedelta, timezone
+from enum import Enum
+
 import requests
 
 _API_ORIGIN = 'https://api.trello.com'
 _MOCK_BOARDS_FILE = 'mock_boards.json'
 _MOCK_ACTIONS_FILE = 'mock_actions.json'
+_UTC = timezone(timedelta(), 'UTC')
+_JST = timezone(timedelta(hours=9), name='JST')
 
 
 class Mode(Enum):
@@ -65,7 +69,13 @@ def main():
             with open(_MOCK_ACTIONS_FILE, 'w', encoding='utf-8') as f:
                 json.dump(boards, f, ensure_ascii=False, indent=4)
 
-        parse_actions(actions=actions)
+        if mock:
+            start_datetime = datetime(2021, 5, 21, tzinfo=_JST)
+        else:
+            current = datetime.now(tz=_JST)
+            start_datetime = current.replace(
+                hour=0, minute=0, second=0, microsecond=0)
+        parse_actions(actions=actions, start_datetime=start_datetime)
 
 
 def get_boards(user_id: str, general_params: dict):
@@ -116,8 +126,22 @@ def get_query(params: dict) -> str:
     return query
 
 
-def parse_actions(actions: str):
-    pass
+def parse_actions(actions: str, start_datetime: datetime):
+    print(f'Start period: {start_datetime}')
+
+    in_period_actions = []
+    for action in actions:
+        action_datetime_str = action['date']
+        action_datetime = datetime.strptime(
+            action_datetime_str, '%Y-%m-%dT%H:%M:%S.%f%z')
+        print(action_datetime)
+
+        if (action_datetime < start_datetime):
+            continue
+
+        in_period_actions.append(action)
+
+    print(f'Filtered actions: {in_period_actions}')
 
 
 if __name__ == '__main__':
