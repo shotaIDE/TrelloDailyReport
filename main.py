@@ -67,9 +67,16 @@ def get_boards(user_id: str, general_params: dict):
 
 def get_actions(board_id: str, general_params: dict):
     get_actions_path = f'/1/boards/{board_id}/actions'
+
     params = general_params.copy()
     params['limit'] = 100
+    filter_params = [
+        'commentCard',
+    ]
+    params['filter'] = ','.join(filter_params)
+
     query = get_query(params=params)
+
     url = f'{_API_ORIGIN}{get_actions_path}?{query}'
 
     print(f'Get url: {url}')
