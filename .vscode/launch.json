@@ -5,11 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Run",
+            "name": "Get Boards",
             "type": "python",
             "request": "launch",
             "program": "${workspaceRoot}/main.py",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "args": [
+                "--mode", "boards"
+            ]
         }
     ]
 }

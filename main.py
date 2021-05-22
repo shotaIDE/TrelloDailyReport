@@ -1,12 +1,33 @@
 # coding: utf-8
 
+from enum import Enum
+import argparse
 import json
 import requests
 
 _API_ORIGIN = 'https://api.trello.com'
 
 
+class Mode(Enum):
+    GET_BOARDS = 'boards'
+    GET_ACTIONS = 'actions'
+
+
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mode', type=str, default=Mode.GET_ACTIONS.value)
+    arguments = parser.parse_args()
+
+    mode_str = arguments.mode
+    if mode_str == Mode.GET_BOARDS.value:
+        mode = Mode.GET_BOARDS
+        print('Run in get boards mode')
+    elif mode_str == Mode.GET_ACTIONS.value:
+        mode = Mode.GET_ACTIONS
+        print('Run in default mode (get actions mode)')
+    else:
+        raise Exception('Invalid mode')
+
     SETTINGS_JSON_FILE_NAME = 'settings.json'
     with open(SETTINGS_JSON_FILE_NAME, 'r', encoding='utf-8') as f:
         settings_dict = json.load(f)
@@ -18,7 +39,10 @@ def main():
 
     query = get_query(key=trello_api_key, token=trello_api_secret)
 
-    get_boards(user_id=trello_user_name, query=query)
+    if mode == Mode.GET_BOARDS:
+        get_boards(user_id=trello_user_name, query=query)
+    elif mode == Mode.GET_ACTIONS:
+        get_actions()
 
 
 def get_query(key: str, token: str) -> str:
@@ -46,6 +70,10 @@ def get_boards(user_id: str, query: str):
     boards = json.loads(boards_string)
     with open('debug_boards.json', 'w', encoding='utf-8') as f:
         json.dump(boards, f, ensure_ascii=False, indent=4)
+
+
+def get_actions():
+    pass
 
 
 if __name__ == '__main__':
