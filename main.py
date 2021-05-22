@@ -22,6 +22,7 @@ class Mode(Enum):
     GET_BOARDS = 'boards'
     GET_ACTIONS = 'actions'
     GET_CARDS = 'cards'
+    GET_REPORT = 'report'
 
 
 @dataclass
@@ -69,7 +70,7 @@ class Spent:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', type=str, default=Mode.GET_ACTIONS.value)
+    parser.add_argument('--mode', type=str, default=Mode.GET_REPORT.value)
     parser.add_argument('--prod', action='store_true', default=False)
     arguments = parser.parse_args()
 
@@ -79,10 +80,13 @@ def main():
         print('Run in get boards mode')
     elif mode_str == Mode.GET_ACTIONS.value:
         mode = Mode.GET_ACTIONS
-        print('Run in default mode (get actions mode)')
+        print('Run in get actions mode')
     elif mode_str == Mode.GET_CARDS.value:
         mode = Mode.GET_CARDS
         print('Run in get cards mode')
+    elif mode_str == Mode.GET_REPORT.value:
+        mode = Mode.GET_REPORT
+        print('Run in default mode (get report mode)')
     else:
         raise Exception('Invalid mode')
 
@@ -117,6 +121,16 @@ def main():
 
     elif mode == Mode.GET_CARDS:
         get_cards(
+            board_id=trello_board_id,
+            general_params=general_params,
+            mock=mock)
+
+    elif mode == Mode.GET_REPORT:
+        spent = get_actions(
+            board_id=trello_board_id,
+            general_params=general_params,
+            mock=mock)
+        cards = get_cards(
             board_id=trello_board_id,
             general_params=general_params,
             mock=mock)
