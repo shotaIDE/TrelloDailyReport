@@ -22,6 +22,27 @@
             ]
         },
         {
+            "name": "Get Cards Mock",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceRoot}/main.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--mode", "cards"
+            ]
+        },
+        {
+            "name": "Get Cards Production",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceRoot}/main.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--mode", "cards",
+                "--prod"
+            ]
+        },
+        {
             "name": "Get Boards",
             "type": "python",
             "request": "launch",

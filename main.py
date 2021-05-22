@@ -12,6 +12,7 @@ import requests
 _API_ORIGIN = 'https://api.trello.com'
 _MOCK_BOARDS_FILE = 'mock_boards.json'
 _MOCK_ACTIONS_FILE = 'mock_actions.json'
+_MOCK_CARDS_FILE = 'mock_cards.json'
 _UTC = timezone(timedelta(), 'UTC')
 _JST = timezone(timedelta(hours=9), name='JST')
 _PLUS_FOR_TRELLO_COMMENT_FORMAT = r'^plus\! (\d+(\.\d+)?)/(\d+(\.\d+)?) ?(.*)$'
@@ -20,6 +21,7 @@ _PLUS_FOR_TRELLO_COMMENT_FORMAT = r'^plus\! (\d+(\.\d+)?)/(\d+(\.\d+)?) ?(.*)$'
 class Mode(Enum):
     GET_BOARDS = 'boards'
     GET_ACTIONS = 'actions'
+    GET_CARDS = 'cards'
 
 
 @dataclass
@@ -63,6 +65,9 @@ def main():
     elif mode_str == Mode.GET_ACTIONS.value:
         mode = Mode.GET_ACTIONS
         print('Run in default mode (get actions mode)')
+    elif mode_str == Mode.GET_CARDS.value:
+        mode = Mode.GET_CARDS
+        print('Run in get cards mode')
     else:
         raise Exception('Invalid mode')
 
@@ -88,6 +93,7 @@ def main():
 
     if mode == Mode.GET_BOARDS:
         get_boards(user_id=trello_user_name, general_params=general_params)
+
     elif mode == Mode.GET_ACTIONS:
         if mock:
             with open(_MOCK_ACTIONS_FILE, 'r', encoding='utf-8') as f:
@@ -107,6 +113,18 @@ def main():
             start_datetime = current.replace(
                 hour=0, minute=0, second=0, microsecond=0)
         parse_actions(actions=actions, start_datetime=start_datetime)
+
+    elif mode == Mode.GET_CARDS:
+        if mock:
+            with open(_MOCK_CARDS_FILE, 'r', encoding='utf-8') as f:
+                cards = json.load(f)
+        else:
+            cards = fetch_cards(
+                board_id=trello_board_id,
+                general_params=general_params)
+
+            with open(_MOCK_CARDS_FILE, 'w', encoding='utf-8') as f:
+                json.dump(cards, f, ensure_ascii=False, indent=4)
 
 
 def get_boards(user_id: str, general_params: dict):
@@ -208,6 +226,25 @@ def parse_actions(actions: str, start_datetime: datetime):
         spents.append(spent)
 
     print(spents)
+
+
+def fetch_cards(board_id: str, general_params: dict) -> dict:
+    target_status = 'open'
+    get_actions_path = f'/1/boards/{board_id}/cards/{target_status}'
+
+    query = get_query(params=general_params)
+
+    url = f'{_API_ORIGIN}{get_actions_path}?{query}'
+
+    print(f'Get url: {url}')
+
+    result = requests.get(url)
+    cards_string = result.text
+
+    print(f'result: {cards_string}')
+
+    cards = json.loads(cards_string)
+    return cards
 
 
 if __name__ == '__main__':
