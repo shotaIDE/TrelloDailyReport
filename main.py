@@ -43,6 +43,13 @@ class Action:
     spent: float
 
 
+@dataclass
+class Spent:
+    card: Card
+    comments: [str]
+    spent: float
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', type=str, default=Mode.GET_ACTIONS.value)
@@ -190,7 +197,17 @@ def parse_actions(actions: str, start_datetime: datetime):
     duplicated_cards = [action.card for action in in_period_actions]
     cards = set(duplicated_cards)
 
-    print(cards)
+    spents = []
+    for card in cards:
+        card_actions = [action for action in in_period_actions]
+        card_spent_raw = sum([action.spent for action in card_actions])
+        card_spent = round(card_spent_raw, 2)
+        card_comments = [
+            action.comment for action in card_actions if action.comment != '']
+        spent = Spent(card=card, comments=card_comments, spent=card_spent)
+        spents.append(spent)
+
+    print(spents)
 
 
 if __name__ == '__main__':
