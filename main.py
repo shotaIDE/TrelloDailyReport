@@ -110,38 +110,16 @@ def main():
         get_boards(user_id=trello_user_name, general_params=general_params)
 
     elif mode == Mode.GET_ACTIONS:
-        if mock:
-            with open(_MOCK_ACTIONS_FILE, 'r', encoding='utf-8') as f:
-                actions = json.load(f)
-        else:
-            actions = fetch_actions(
-                board_id=trello_board_id,
-                general_params=general_params)
-
-            with open(_MOCK_ACTIONS_FILE, 'w', encoding='utf-8') as f:
-                json.dump(actions, f, ensure_ascii=False, indent=4)
-
-        if mock:
-            start_datetime = datetime(2021, 5, 21, tzinfo=_JST)
-        else:
-            current = datetime.now(tz=_JST)
-            start_datetime = current.replace(
-                hour=0, minute=0, second=0, microsecond=0)
-        parse_actions(actions=actions, start_datetime=start_datetime)
+        get_actions(
+            board_id=trello_board_id,
+            general_params=general_params,
+            mock=mock)
 
     elif mode == Mode.GET_CARDS:
-        if mock:
-            with open(_MOCK_CARDS_FILE, 'r', encoding='utf-8') as f:
-                cards = json.load(f)
-        else:
-            cards = fetch_cards(
-                board_id=trello_board_id,
-                general_params=general_params)
-
-            with open(_MOCK_CARDS_FILE, 'w', encoding='utf-8') as f:
-                json.dump(cards, f, ensure_ascii=False, indent=4)
-
-        parse_cards(cards=cards)
+        get_cards(
+            board_id=trello_board_id,
+            general_params=general_params,
+            mock=mock)
 
 
 def get_boards(user_id: str, general_params: dict):
@@ -161,7 +139,46 @@ def get_boards(user_id: str, general_params: dict):
         json.dump(boards, f, ensure_ascii=False, indent=4)
 
 
-def fetch_actions(board_id: str, general_params: dict) -> dict:
+def get_actions(board_id: str, general_params: dict, mock: bool) -> [Spent]:
+    if mock:
+        with open(_MOCK_ACTIONS_FILE, 'r', encoding='utf-8') as f:
+            actions = json.load(f)
+    else:
+        actions = fetch_actions(
+            board_id=trello_board_id,
+            general_params=general_params)
+
+        with open(_MOCK_ACTIONS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(actions, f, ensure_ascii=False, indent=4)
+
+    if mock:
+        start_datetime = datetime(2021, 5, 21, tzinfo=_JST)
+    else:
+        current = datetime.now(tz=_JST)
+        start_datetime = current.replace(
+            hour=0, minute=0, second=0, microsecond=0)
+    actions = parse_actions(actions=actions, start_datetime=start_datetime)
+
+    return actions
+
+
+def get_cards(board_id: str, general_params: dict, mock: bool) -> [Card]:
+    if mock:
+        with open(_MOCK_CARDS_FILE, 'r', encoding='utf-8') as f:
+            cards = json.load(f)
+    else:
+        cards = fetch_cards(
+            board_id=board_id,
+            general_params=general_params)
+
+        with open(_MOCK_CARDS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(cards, f, ensure_ascii=False, indent=4)
+
+    cards = parse_cards(cards=cards)
+    return cards
+
+
+def fetch_actions(board_id: str, general_params: dict) -> [dict]:
     get_actions_path = f'/1/boards/{board_id}/actions'
 
     params = general_params.copy()
@@ -192,7 +209,7 @@ def get_query(params: dict) -> str:
     return query
 
 
-def parse_actions(actions: str, start_datetime: datetime):
+def parse_actions(actions: [dict], start_datetime: datetime) -> [Spent]:
     print(f'Start period: {start_datetime}')
 
     pattern = re.compile(_PLUS_FOR_TRELLO_COMMENT_FORMAT)
@@ -244,8 +261,10 @@ def parse_actions(actions: str, start_datetime: datetime):
 
     print(spents)
 
+    return spents
 
-def fetch_cards(board_id: str, general_params: dict) -> dict:
+
+def fetch_cards(board_id: str, general_params: dict) -> [dict]:
     target_status = 'visible'
     get_actions_path = f'/1/boards/{board_id}/cards/{target_status}'
 
@@ -264,7 +283,7 @@ def fetch_cards(board_id: str, general_params: dict) -> dict:
     return cards
 
 
-def parse_cards(cards: dict) -> dict:
+def parse_cards(cards: [dict]) -> [Card]:
     parsed_cards = []
     for card in cards:
         labels = [
