@@ -23,9 +23,22 @@ class Mode(Enum):
 
 
 @dataclass
+class Card:
+    id: str
+    title: str
+
+    def __eq__(self, other):
+        if not isinstance(other, Card):
+            return False
+        return self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id)
+
+
+@dataclass
 class Action:
-    card_id: str
-    card_title: str
+    card: Card
     comment: str
     spent: float
 
@@ -165,17 +178,19 @@ def parse_actions(actions: str, start_datetime: datetime):
         card_id = card['id']
         card_title = card['name']
 
-        action = Action(
-            card_id=card_id,
-            card_title=card_title,
-            comment=comment,
-            spent=spent)
+        card = Card(id=card_id, title=card_title)
+        action = Action(card=card, comment=comment, spent=spent)
 
         print(action)
 
         in_period_actions.append(action)
 
     print(f'Filtered actions: #{len(in_period_actions)}')
+
+    duplicated_cards = [action.card for action in in_period_actions]
+    cards = set(duplicated_cards)
+
+    print(cards)
 
 
 if __name__ == '__main__':
