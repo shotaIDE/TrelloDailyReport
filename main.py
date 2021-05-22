@@ -1,6 +1,7 @@
 # coding: utf-8
 
 import argparse
+import itertools
 import json
 import re
 from dataclasses import dataclass
@@ -16,6 +17,7 @@ _MOCK_CARDS_FILE = 'mock_cards.json'
 _UTC = timezone(timedelta(), 'UTC')
 _JST = timezone(timedelta(hours=9), name='JST')
 _PLUS_FOR_TRELLO_COMMENT_FORMAT = r'^plus\! (\d+(\.\d+)?)/(\d+(\.\d+)?) ?(.*)$'
+_REPORT_FILE = 'report.md'
 
 
 class Mode(Enum):
@@ -104,6 +106,8 @@ def main():
     trello_api_secret = settings_dict['trelloApiSecret']
     trello_user_name = settings_dict['trelloUserName']
     trello_board_id = settings_dict['trelloBoardId']
+    projects = settings_dict['projects']
+    categories = settings_dict['categories']
 
     general_params = {
         'key': trello_api_key,
@@ -126,7 +130,7 @@ def main():
             mock=mock)
 
     elif mode == Mode.GET_REPORT:
-        spent = get_actions(
+        spents = get_actions(
             board_id=trello_board_id,
             general_params=general_params,
             mock=mock)
@@ -134,6 +138,11 @@ def main():
             board_id=trello_board_id,
             general_params=general_params,
             mock=mock)
+        get_report(
+            spents=spents,
+            cards=cards,
+            projects=projects,
+            categories=categories)
 
 
 def get_boards(user_id: str, general_params: dict):
@@ -190,6 +199,50 @@ def get_cards(board_id: str, general_params: dict, mock: bool) -> [Card]:
 
     cards = parse_cards(cards=cards)
     return cards
+
+
+def get_report(
+        spents: [Spent], cards: {str: Card}, projects=[str], categories=[str]):
+    spent_card_ids = [spent.card_id for spent in spents]
+    spent_cards = [cards[card_id] for card_id in spent_card_ids]
+    print(f'Spent cards: {spent_cards}')
+
+    target_labels = set(
+        list(itertools.chain.from_iterable(
+            [card.labels for card in spent_cards])))
+    target_label_texts = [label.text for label in target_labels]
+    print(f'Target labels: {target_labels}')
+
+    target_projects = [
+        label for label in target_labels if label.text in projects]
+    print(f'Target projects: {target_projects}')
+
+    target_categories = [
+        label for label in target_labels if label.text in categories]
+    print(f'Target categories: {target_categories}')
+
+    report = ''
+    for project in target_projects:
+        report += f'## {project.text}\n'
+
+        target_card_id_set = [
+            card.id for card in cards.values() if project in card.labels]
+        target_spents = [
+            spent for spent in spents if spent.card_id in target_card_id_set]
+
+        for spent in target_spents:
+            card = cards[spent.card_id]
+            report += f'- [{spent.spent:.2f}h] {card.title}\n'
+            for comment in spent.comments:
+                report += f'  - {comment}\n'
+
+        report += '\n'
+
+    print('====================')
+    print(report)
+
+    with open(_REPORT_FILE, 'w', encoding='utf=8')as f:
+        f.write(report)
 
 
 def fetch_actions(board_id: str, general_params: dict) -> [dict]:
@@ -297,16 +350,16 @@ def fetch_cards(board_id: str, general_params: dict) -> [dict]:
     return cards
 
 
-def parse_cards(cards: [dict]) -> [Card]:
-    parsed_cards = []
+def parse_cards(cards: [{}]) -> {str: Card}:
+    parsed_cards = {}
     for card in cards:
         labels = [
             Label(id=label['id'], text=label['name'])
             for label in card['labels']
         ]
-        parsed_cards.append(
-            Card(id=card['id'], title=card['name'], labels=labels)
-        )
+        card_id = card['id']
+        parsed_cards[card_id] = Card(
+            id=card_id, title=card['name'], labels=labels)
 
     print(parsed_cards)
 
