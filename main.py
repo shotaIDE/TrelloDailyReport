@@ -175,7 +175,7 @@ def get_actions(board_id: str, general_params: dict, mock: bool) -> [Spent]:
             json.dump(actions, f, ensure_ascii=False, indent=4)
 
     if mock:
-        start_datetime = datetime(2021, 5, 21, tzinfo=_JST)
+        start_datetime = datetime(2021, 5, 1, tzinfo=_JST)
     else:
         current = datetime.now(tz=_JST)
         start_datetime = current.replace(
@@ -204,7 +204,10 @@ def get_cards(board_id: str, general_params: dict, mock: bool) -> [Card]:
 def get_report(
         spents: [Spent], cards: {str: Card}, projects=[str], categories=[str]):
     spent_card_ids = [spent.card_id for spent in spents]
-    spent_cards = [cards[card_id] for card_id in spent_card_ids]
+    spent_cards = [
+        cards[card_id]
+        for card_id in spent_card_ids
+        if card_id in cards.keys()]
     print(f'Spent cards: {spent_cards}')
 
     target_labels = set(
@@ -346,7 +349,10 @@ def parse_actions(actions: [dict], start_datetime: datetime) -> [Spent]:
 
     spents = []
     for card_id in card_id_set:
-        card_actions = [action for action in in_period_actions]
+        card_actions = [
+            action
+            for action in in_period_actions
+            if action.card_id == card_id]
         card_spent_raw = sum([action.spent for action in card_actions])
         card_spent = round(card_spent_raw, 2)
         card_comments = [
