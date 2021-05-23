@@ -222,19 +222,50 @@ def get_report(
     print(f'Target categories: {target_categories}')
 
     report = ''
+    added_cards = set()
     for project in target_projects:
         report += f'## {project.text}\n'
 
-        target_card_id_set = [
+        project_card_id_set = [
             card.id for card in cards.values() if project in card.labels]
-        target_spents = [
-            spent for spent in spents if spent.card_id in target_card_id_set]
+        project_spents = [
+            spent for spent in spents if spent.card_id in project_card_id_set]
 
-        for spent in target_spents:
-            card = cards[spent.card_id]
-            report += f'- [{spent.spent:.2f}h] {card.title}\n'
-            for comment in spent.comments:
-                report += f'  - {comment}\n'
+        for category in target_categories:
+            report += f'- {category.text}\n'
+            category_card_id_set = [
+                card.id for card in cards.values() if category in card.labels]
+            category_spents = [
+                spent
+                for spent in project_spents
+                if spent.card_id in category_card_id_set]
+
+            for spent in category_spents:
+                if spent.card_id in added_cards:
+                    continue
+
+                added_cards.add(spent.card_id)
+
+                card = cards[spent.card_id]
+                report += f'  - [{spent.spent:.2f}h] {card.title}\n'
+                for comment in spent.comments:
+                    report += f'    - {comment}\n'
+
+        uncategorized_project_spents = [
+            spent
+            for spent in project_spents
+            if not (spent.card_id in added_cards)
+        ]
+        if len(uncategorized_project_spents) >= 1:
+            report += '- その他\n'
+
+            for spent in uncategorized_project_spents:
+                added_cards.add(spent.card_id)
+
+                card = cards[spent.card_id]
+                report += f'  - [{spent.spent:.2f}h] {card.title}\n'
+                for comment in spent.comments:
+                    report += f'    - {comment}\n'
 
         report += '\n'
 
