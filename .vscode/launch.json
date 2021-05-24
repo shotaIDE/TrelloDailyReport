@@ -12,6 +12,16 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Get Report Production",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceRoot}/main.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--prod"
+            ]
+        },
+        {
             "name": "Get Actions Mock",
             "type": "python",
             "request": "launch",
