@@ -118,7 +118,9 @@ def main():
         get_boards(user_id=trello_user_name, general_params=general_params)
 
     elif mode == Mode.GET_ACTIONS:
+        start_datetime = get_start_datetime(mock)
         get_actions(
+            start_datetime=start_datetime,
             board_id=trello_board_id,
             general_params=general_params,
             mock=mock)
@@ -130,7 +132,9 @@ def main():
             mock=mock)
 
     elif mode == Mode.GET_REPORT:
+        start_datetime = get_start_datetime(mock)
         spents = get_actions(
+            start_datetime=start_datetime,
             board_id=trello_board_id,
             general_params=general_params,
             mock=mock)
@@ -139,10 +143,19 @@ def main():
             general_params=general_params,
             mock=mock)
         get_report(
+            start_datetime=start_datetime,
             spents=spents,
             cards=cards,
             projects=projects,
             categories=categories)
+
+
+def get_start_datetime(mock: bool) -> datetime:
+    if mock:
+        return datetime(2021, 5, 1, tzinfo=_JST)
+    else:
+        current = datetime.now(tz=_JST)
+        return current.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def get_boards(user_id: str, general_params: dict):
@@ -162,7 +175,11 @@ def get_boards(user_id: str, general_params: dict):
         json.dump(boards, f, ensure_ascii=False, indent=4)
 
 
-def get_actions(board_id: str, general_params: dict, mock: bool) -> [Spent]:
+def get_actions(
+        start_datetime: datetime,
+        board_id: str,
+        general_params: dict,
+        mock: bool) -> [Spent]:
     if mock:
         with open(_MOCK_ACTIONS_FILE, 'r', encoding='utf-8') as f:
             actions = json.load(f)
@@ -174,12 +191,6 @@ def get_actions(board_id: str, general_params: dict, mock: bool) -> [Spent]:
         with open(_MOCK_ACTIONS_FILE, 'w', encoding='utf-8') as f:
             json.dump(actions, f, ensure_ascii=False, indent=4)
 
-    if mock:
-        start_datetime = datetime(2021, 5, 1, tzinfo=_JST)
-    else:
-        current = datetime.now(tz=_JST)
-        start_datetime = current.replace(
-            hour=0, minute=0, second=0, microsecond=0)
     actions = parse_actions(actions=actions, start_datetime=start_datetime)
 
     return actions
@@ -202,7 +213,11 @@ def get_cards(board_id: str, general_params: dict, mock: bool) -> [Card]:
 
 
 def get_report(
-        spents: [Spent], cards: {str: Card}, projects=[str], categories=[str]):
+        start_datetime: datetime,
+        spents: [Spent],
+        cards: {str: Card},
+        projects=[str],
+        categories=[str]):
     spent_card_ids = [spent.card_id for spent in spents]
     spent_cards = [
         cards[card_id]
@@ -224,11 +239,11 @@ def get_report(
         label for label in target_labels if label.text in categories]
     print(f'Target categories: {target_categories}')
 
-    report = ''
+    report_body = ''
     sum_of_spent_hours = 0.0
     added_cards = set()
     for project in target_projects:
-        report += f'## {project.text}\n'
+        report_body += f'## {project.text}\n'
 
         project_card_id_set = [
             card.id for card in cards.values() if project in card.labels]
@@ -236,7 +251,7 @@ def get_report(
             spent for spent in spents if spent.card_id in project_card_id_set]
 
         for category in target_categories:
-            report += f'- {category.text}\n'
+            report_body += f'- {category.text}\n'
             category_card_id_set = [
                 card.id for card in cards.values() if category in card.labels]
             category_spents = [
@@ -251,9 +266,9 @@ def get_report(
                 added_cards.add(spent.card_id)
 
                 card = cards[spent.card_id]
-                report += f'  - [{spent.spent:.2f}h] {card.title}\n'
+                report_body += f'  - [{spent.spent:.2f}h] {card.title}\n'
                 for comment in spent.comments:
-                    report += f'    - {comment}\n'
+                    report_body += f'    - {comment}\n'
 
         uncategorized_project_spents = [
             spent
@@ -261,21 +276,27 @@ def get_report(
             if not (spent.card_id in added_cards)
         ]
         if len(uncategorized_project_spents) >= 1:
-            report += '- その他\n'
+            report_body += '- その他\n'
 
             for spent in uncategorized_project_spents:
                 added_cards.add(spent.card_id)
 
                 card = cards[spent.card_id]
-                report += f'  - [{spent.spent:.2f}h] {card.title}\n'
+                report_body += f'  - [{spent.spent:.2f}h] {card.title}\n'
                 sum_of_spent_hours += spent.spent
 
                 for comment in spent.comments:
-                    report += f'    - {comment}\n'
+                    report_body += f'    - {comment}\n'
 
-        report += '\n'
+        report_body += '\n'
 
-    report = f'稼働時間: {sum_of_spent_hours:.2f}h\n\n' + report
+    start_datetime_string = start_datetime.strftime('%Y/%m/%d')
+    report = (
+        f'# {start_datetime_string} 日報\n'
+        f'稼働時間: {sum_of_spent_hours:.2f}h\n'
+        '\n'
+        f'{report_body}'
+    )
 
     print('====================')
     print(report)
