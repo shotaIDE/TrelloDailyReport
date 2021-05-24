@@ -225,6 +225,7 @@ def get_report(
     print(f'Target categories: {target_categories}')
 
     report = ''
+    sum_of_spent_hours = 0.0
     added_cards = set()
     for project in target_projects:
         report += f'## {project.text}\n'
@@ -267,10 +268,14 @@ def get_report(
 
                 card = cards[spent.card_id]
                 report += f'  - [{spent.spent:.2f}h] {card.title}\n'
+                sum_of_spent_hours += spent.spent
+
                 for comment in spent.comments:
                     report += f'    - {comment}\n'
 
         report += '\n'
+
+    report = f'稼働時間: {sum_of_spent_hours:.2f}h\n\n' + report
 
     print('====================')
     print(report)
