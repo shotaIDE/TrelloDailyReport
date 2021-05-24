@@ -168,7 +168,7 @@ def get_actions(board_id: str, general_params: dict, mock: bool) -> [Spent]:
             actions = json.load(f)
     else:
         actions = fetch_actions(
-            board_id=trello_board_id,
+            board_id=board_id,
             general_params=general_params)
 
         with open(_MOCK_ACTIONS_FILE, 'w', encoding='utf-8') as f:
