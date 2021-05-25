@@ -241,59 +241,39 @@ def get_report(
 
     report_body = ''
     sum_of_spent_hours = 0.0
-    added_cards = set()
+    added_card_ids = set()
     for project in target_projects:
         report_body += f'## {project.text}\n'
 
         project_card_id_set = [
             card.id for card in cards.values() if project in card.labels]
+        added_card_ids = added_card_ids.union(project_card_id_set)
+
         project_spents = [
             spent for spent in spents if spent.card_id in project_card_id_set]
 
-        for category in target_categories:
-            report_body += f'- {category.text}\n'
-            category_card_id_set = [
-                card.id for card in cards.values() if category in card.labels]
-            category_spents = [
-                spent
-                for spent in project_spents
-                if spent.card_id in category_card_id_set]
+        report_body += get_project_report(
+            spents=project_spents, categories=target_categories, cards=cards)
 
-            for spent in category_spents:
-                if spent.card_id in added_cards:
-                    continue
+        report_body += '\n'
 
-                added_cards.add(spent.card_id)
+    not_project_spents = [
+        spent
+        for spent in spents
+        if spent.card_id not in added_card_ids]
+    if len(not_project_spents) >= 1:
+        report_body += f'## その他\n'
 
-                card = cards[spent.card_id]
-                report_body += f'  - [{spent.spent:.2f}h] {card.title}\n'
-                for comment in spent.comments:
-                    report_body += f'    - {comment}\n'
-
-        uncategorized_project_spents = [
-            spent
-            for spent in project_spents
-            if not (spent.card_id in added_cards)
-        ]
-        if len(uncategorized_project_spents) >= 1:
-            report_body += '- その他\n'
-
-            for spent in uncategorized_project_spents:
-                added_cards.add(spent.card_id)
-
-                card = cards[spent.card_id]
-                report_body += f'  - [{spent.spent:.2f}h] {card.title}\n'
-                sum_of_spent_hours += spent.spent
-
-                for comment in spent.comments:
-                    report_body += f'    - {comment}\n'
+        report_body += get_project_report(
+            spents=not_project_spents,
+            categories=target_categories,
+            cards=cards)
 
         report_body += '\n'
 
     start_datetime_string = start_datetime.strftime('%Y/%m/%d')
     report = (
         f'# {start_datetime_string} 日報\n'
-        f'稼働時間: {sum_of_spent_hours:.2f}h\n'
         '\n'
         f'{report_body}'
     )
@@ -427,6 +407,57 @@ def parse_cards(cards: [{}]) -> {str: Card}:
     print(parsed_cards)
 
     return parsed_cards
+
+
+def get_project_report(
+        spents: [Spent], categories: [str], cards: [Card]) -> str:
+    added_card_ids = set()
+    report = ''
+
+    for category in categories:
+        category_card_id_set = [
+            card.id for card in cards.values() if category in card.labels]
+        category_spents = [
+            spent
+            for spent in spents
+            if spent.card_id in category_card_id_set]
+
+        if len(category_spents) == 0:
+            continue
+
+        report += f'- {category.text}\n'
+
+        for spent in category_spents:
+            if spent.card_id in added_card_ids:
+                continue
+
+            added_card_ids.add(spent.card_id)
+
+            card = cards[spent.card_id]
+            report += f'  - [{spent.spent:.2f}h] {card.title}\n'
+            for comment in spent.comments:
+                report += f'    - {comment}\n'
+
+    uncategorized_project_spents = [
+        spent
+        for spent in spents
+        if spent.card_id not in added_card_ids]
+    if len(uncategorized_project_spents) >= 1:
+        report += '- その他\n'
+
+        for spent in uncategorized_project_spents:
+            added_card_ids.add(spent.card_id)
+
+            if spent.card_id not in cards.keys():
+                continue
+
+            card = cards[spent.card_id]
+            report += f'  - [{spent.spent:.2f}h] {card.title}\n'
+
+            for comment in spent.comments:
+                report += f'    - {comment}\n'
+
+    return report
 
 
 if __name__ == '__main__':
