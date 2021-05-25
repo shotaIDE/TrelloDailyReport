@@ -70,6 +70,27 @@ class Spent:
     spent: float
 
 
+@dataclass
+class TaskReport:
+    title: str
+    spent: float
+    sub_tasks: [str]
+
+
+@dataclass
+class CategoryReport:
+    title: str
+    spent: float
+    tasks: [TaskReport]
+
+
+@dataclass
+class ProjectReport:
+    title: str
+    spent: float
+    categories: [CategoryReport]
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', type=str, default=Mode.GET_REPORT.value)
@@ -240,11 +261,8 @@ def get_report(
     print(f'Target categories: {target_categories}')
 
     report_body = ''
-    sum_of_spent_hours = 0.0
     added_card_ids = set()
     for project in target_projects:
-        report_body += f'## {project.text}\n'
-
         project_card_id_set = [
             card.id for card in cards.values() if project in card.labels]
         added_card_ids = added_card_ids.union(project_card_id_set)
@@ -252,24 +270,32 @@ def get_report(
         project_spents = [
             spent for spent in spents if spent.card_id in project_card_id_set]
 
-        report_body += get_project_report(
+        category_reports = get_category_reports(
             spents=project_spents, categories=target_categories, cards=cards)
+        project_spent = sum([report.spent for report in category_reports])
+        project_report = ProjectReport(
+            title=project.text,
+            spent=project_spent,
+            categories=category_reports)
 
-        report_body += '\n'
+        report_body += get_markdown(project=project_report) + '\n'
 
     not_project_spents = [
         spent
         for spent in spents
         if spent.card_id not in added_card_ids]
     if len(not_project_spents) >= 1:
-        report_body += f'## その他\n'
-
-        report_body += get_project_report(
+        category_reports = get_category_reports(
             spents=not_project_spents,
             categories=target_categories,
             cards=cards)
+        project_spent = sum([report.spent for report in category_reports])
+        project_report = ProjectReport(
+            title='その他',
+            spent=project_spent,
+            categories=category_reports)
 
-        report_body += '\n'
+        report_body += get_markdown(project=project_report) + '\n'
 
     start_datetime_string = start_datetime.strftime('%Y/%m/%d')
     report = (
@@ -409,10 +435,10 @@ def parse_cards(cards: [{}]) -> {str: Card}:
     return parsed_cards
 
 
-def get_project_report(
-        spents: [Spent], categories: [str], cards: [Card]) -> str:
+def get_category_reports(
+        spents: [Spent], categories: [str], cards: [Card]) -> [CategoryReport]:
+    category_reports = []
     added_card_ids = set()
-    report = ''
 
     for category in categories:
         category_card_id_set = [
@@ -425,37 +451,71 @@ def get_project_report(
         if len(category_spents) == 0:
             continue
 
-        report += f'- {category.text}\n'
+        task_reports = []
 
         for spent in category_spents:
             if spent.card_id in added_card_ids:
                 continue
 
+            card = cards[spent.card_id]
+            task_report = TaskReport(
+                title=card.title,
+                spent=spent.spent,
+                sub_tasks=[comment for comment in spent.comments])
+
+            task_reports.append(task_report)
+
             added_card_ids.add(spent.card_id)
 
-            card = cards[spent.card_id]
-            report += f'  - [{spent.spent:.2f}h] {card.title}\n'
-            for comment in spent.comments:
-                report += f'    - {comment}\n'
+        category_spent = sum([task.spent for task in task_reports])
+        category_report = CategoryReport(
+            title=category.text,
+            spent=category_spent,
+            tasks=task_reports)
+
+        category_reports.append(category_report)
 
     uncategorized_project_spents = [
         spent
         for spent in spents
         if spent.card_id not in added_card_ids]
     if len(uncategorized_project_spents) >= 1:
-        report += '- その他\n'
+        task_reports = []
 
         for spent in uncategorized_project_spents:
-            added_card_ids.add(spent.card_id)
-
             if spent.card_id not in cards.keys():
                 continue
 
             card = cards[spent.card_id]
-            report += f'  - [{spent.spent:.2f}h] {card.title}\n'
+            task_report = TaskReport(
+                title=card.title,
+                spent=spent.spent,
+                sub_tasks=[comment for comment in spent.comments])
 
-            for comment in spent.comments:
-                report += f'    - {comment}\n'
+            task_reports.append(task_report)
+
+        category_spent = sum([task.spent for task in task_reports])
+        category_report = CategoryReport(
+            title='その他',
+            spent=category_spent,
+            tasks=task_reports)
+
+        category_reports.append(category_report)
+
+    return category_reports
+
+
+def get_markdown(project: ProjectReport) -> str:
+    report = f'## [{project.spent:.2f}h] {project.title}\n'
+
+    for category in project.categories:
+        report += f'- [{category.spent:.2f}h] {category.title}\n'
+
+        for task in category.tasks:
+            report += f'  - [{task.spent:.2f}h] {task.title}\n'
+
+            for sub_task in task.sub_tasks:
+                report += f'    - {sub_task}\n'
 
     return report
 
