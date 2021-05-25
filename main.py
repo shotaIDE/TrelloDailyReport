@@ -91,6 +91,13 @@ class ProjectReport:
     categories: [CategoryReport]
 
 
+@dataclass
+class DailyReport:
+    title: str
+    spent: float
+    projects: [ProjectReport]
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', type=str, default=Mode.GET_REPORT.value)
@@ -260,8 +267,9 @@ def get_report(
         label for label in target_labels if label.text in categories]
     print(f'Target categories: {target_categories}')
 
-    report_body = ''
+    project_reports = []
     added_card_ids = set()
+
     for project in target_projects:
         project_card_id_set = [
             card.id for card in cards.values() if project in card.labels]
@@ -270,45 +278,41 @@ def get_report(
         project_spents = [
             spent for spent in spents if spent.card_id in project_card_id_set]
 
-        category_reports = get_category_reports(
-            spents=project_spents, categories=target_categories, cards=cards)
-        project_spent = sum([report.spent for report in category_reports])
-        project_report = ProjectReport(
-            title=project.text,
-            spent=project_spent,
-            categories=category_reports)
+        project_report = get_project_report(
+            project=project.text,
+            spents=project_spents,
+            categories=target_categories,
+            cards=cards)
 
-        report_body += get_markdown(project=project_report) + '\n'
+        project_reports.append(project_report)
 
     not_project_spents = [
         spent
         for spent in spents
         if spent.card_id not in added_card_ids]
     if len(not_project_spents) >= 1:
-        category_reports = get_category_reports(
+        project_report = get_project_report(
+            project='その他',
             spents=not_project_spents,
             categories=target_categories,
             cards=cards)
-        project_spent = sum([report.spent for report in category_reports])
-        project_report = ProjectReport(
-            title='その他',
-            spent=project_spent,
-            categories=category_reports)
 
-        report_body += get_markdown(project=project_report) + '\n'
+        project_reports.append(project_report)
 
     start_datetime_string = start_datetime.strftime('%Y/%m/%d')
-    report = (
-        f'# {start_datetime_string} 日報\n'
-        '\n'
-        f'{report_body}'
-    )
+    daily_spent = sum([report.spent for report in project_reports])
+    report = DailyReport(
+        title=f'{start_datetime_string} 日報',
+        spent=daily_spent,
+        projects=project_reports)
+
+    markdown = get_markdown(report=report)
 
     print('====================')
-    print(report)
+    print(markdown)
 
     with open(_REPORT_FILE, 'w', encoding='utf=8')as f:
-        f.write(report)
+        f.write(markdown)
 
 
 def fetch_actions(board_id: str, general_params: dict) -> [dict]:
@@ -435,6 +439,21 @@ def parse_cards(cards: [{}]) -> {str: Card}:
     return parsed_cards
 
 
+def get_project_report(
+        project: str,
+        spents: [Spent],
+        categories: [str],
+        cards: [Card]) -> ProjectReport:
+    category_reports = get_category_reports(
+        spents=spents, categories=categories, cards=cards)
+
+    project_spent = sum([report.spent for report in category_reports])
+    return ProjectReport(
+        title=project,
+        spent=project_spent,
+        categories=category_reports)
+
+
 def get_category_reports(
         spents: [Spent], categories: [str], cards: [Card]) -> [CategoryReport]:
     category_reports = []
@@ -505,19 +524,27 @@ def get_category_reports(
     return category_reports
 
 
-def get_markdown(project: ProjectReport) -> str:
-    report = f'## [{project.spent:.2f}h] {project.title}\n'
+def get_markdown(report: DailyReport) -> str:
+    markdown = (
+        f'# {report.title}\n'
+        f'稼働時間: {report.spent:.2f}h\n'
+        '\n')
 
-    for category in project.categories:
-        report += f'- [{category.spent:.2f}h] {category.title}\n'
+    for project in report.projects:
+        markdown += f'## [{project.spent:.2f}h] {project.title}\n'
 
-        for task in category.tasks:
-            report += f'  - [{task.spent:.2f}h] {task.title}\n'
+        for category in project.categories:
+            markdown += f'- [{category.spent:.2f}h] {category.title}\n'
 
-            for sub_task in task.sub_tasks:
-                report += f'    - {sub_task}\n'
+            for task in category.tasks:
+                markdown += f'  - [{task.spent:.2f}h] {task.title}\n'
 
-    return report
+                for sub_task in task.sub_tasks:
+                    markdown += f'    - {sub_task}\n'
+
+        markdown += '\n'
+
+    return markdown
 
 
 if __name__ == '__main__':
