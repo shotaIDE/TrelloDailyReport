@@ -17,7 +17,8 @@ _MOCK_CARDS_FILE = 'mock_cards.json'
 _UTC = timezone(timedelta(), 'UTC')
 _JST = timezone(timedelta(hours=9), name='JST')
 _PLUS_FOR_TRELLO_COMMENT_FORMAT = r'^plus\! (\d+(\.\d+)?)/(\d+(\.\d+)?) ?(.*)$'
-_REPORT_FILE = 'report.md'
+_REPORT_MARKDOWN_FILE = 'report.md'
+_REPORT_JSON_FILE = 'mock_report.json'
 
 
 class Mode(Enum):
@@ -311,8 +312,12 @@ def get_report(
     print('====================')
     print(markdown)
 
-    with open(_REPORT_FILE, 'w', encoding='utf=8')as f:
+    with open(_REPORT_MARKDOWN_FILE, 'w', encoding='utf=8')as f:
         f.write(markdown)
+
+    report_dict = get_dict(report=report)
+    with open(_REPORT_JSON_FILE, 'w', encoding='utf-8') as f:
+        json.dump(report_dict, f, ensure_ascii=False, indent=2)
 
 
 def fetch_actions(board_id: str, general_params: dict) -> [dict]:
@@ -545,6 +550,43 @@ def get_markdown(report: DailyReport) -> str:
         markdown += '\n'
 
     return markdown
+
+
+def get_dict(report: DailyReport) -> {}:
+    report_dict = {
+        'title': report.title,
+        'spent': report.spent,
+        'projects': [],
+    }
+
+    for project in report.projects:
+        project_dict = {
+            'title': project.title,
+            'spent': project.spent,
+            'categories': [],
+        }
+
+        for category in project.categories:
+            category_dict = {
+                'title': category.title,
+                'spent': category.spent,
+                'tasks': [],
+            }
+
+            for task in category.tasks:
+                task_dict = {
+                    'title': task.title,
+                    'spent': f'task.spent',
+                    'sub_tasks': [sub_task for sub_task in task.sub_tasks],
+                }
+
+                category_dict['tasks'].append(task_dict)
+
+            project_dict['categories'].append(category_dict)
+
+        report_dict['projects'].append(project_dict)
+
+    return report_dict
 
 
 if __name__ == '__main__':
